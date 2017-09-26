@@ -1,13 +1,108 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.34/browser.min.js"></script>
     <script type="text/babel" >
         "use strict";
+
+        let socket;
+
+        let canvas;
+
+        let ctx;
+
+        let sendBuffercanvas;
+
+        let sendBufferctx;
+
+        let mouseX = 0;
+
+        let mouseY = 0;
+
+        //get mouse movement 
+        const getmousemove = (canvas,evt) => {
+           let rect = canvas.getBoundingClientRect();
+            return{
+              x: evt.clientX - rect.left,
+              y: evt.clientY - rect.top
+            };
+        };
+
+        const onclick = () => {
+            
+            ctx.fillRect(mouseX,mouseY,50,50);
+            
+            sendBuffercanvas = document.createElement('canvas');
+            sendBuffercanvas.height = 200;
+            sendBuffercanvas.width = 200;
+            sendBufferctx = sendBuffercanvas.getContext('2d');    
+
+            sendBufferctx.fillRect(0,0,50,50);
+
+            
+            let xin = mouseX;
+            let yin = mouseY;
+            
+            const data = {
+                x: xin,
+                y: yin,
+                height: 200,
+                width: 200,
+                imgData: sendBuffercanvas.toDataURL()
+            };
+            console.log('sending it to server');
+            socket.emit('stream', data);
+            
+        };
+
+        const handleMessage = (data) => {
+            console.log('recieved data from server')
+            let image = new Image();
+            console.log(data.x,data.y);
+            console.dir(data.imgData);
+            image.onload = () => {
+              ctx.save();
+              ctx.globalCompositeOperation = "source-over";
+              ctx.drawImage(image,data.x,data.y,data.height,data.width);
+              ctx.restore();    
+            };
+            
+            image.src = data.imgData;
+        }
+
+        const setup = () => {
+            canvas = document.querySelector("#myCanvas");
+            ctx = canvas.getContext('2d');
+        };
+
+        const init = () => {
+          
+            socket = io.connect();
+            //canvas = document.querySelector("#myCanvas");
+            
+            setup();
+            
+            //track mouse location
+          canvas.addEventListener("mousemove", function(evt) {
+             var mousePos = getmousemove(canvas,evt); 
+             mouseX = mousePos.x;
+             mouseY = mousePos.y;
+             //console.log("mousePos:X " + mouseX + " Y: " + mouseY);
+          },false);
+            
+           //click mouse event
+            canvas.addEventListener('click',onclick);
+            
+            socket.on('msgFromserver',handleMessage);
+            
+        };
     
+
+    window.onload = init;
     </script>
 </head>
 <body>
-
+<canvas id="myCanvas" width="500" height="500"style="border:1px solid #000000;"></canvas>
 </body>
 </html>
